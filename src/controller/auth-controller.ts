@@ -19,6 +19,8 @@ import { ConfigData }          from '../config/configs';
 import { sendSuccessResponse } from '../utils';
 import { executeQuery }        from '../db';
 
+//TODO : password should be encrypted
+
 export class AuthController {
 
   async signup(params: SignUp.params, res: Response) {
