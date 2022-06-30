@@ -3,14 +3,10 @@
    
    Created on : Thu Jun 23 2022
    Author     : Ajith K P
-   
-   Copyright (c) 2022 Obopay. All rights reserved.
 ------------------------------------------------------------------------------*/
 
 import { Response }          from 'express'
-import { sendErrorResponse } from "../utils";
 import { executeQuery }      from '../db';
-
 
 export const canAccess = async (req: any, res: Response, next: any) => {
   if(req.userInfo && req.userInfo.role) {
@@ -23,7 +19,8 @@ export const canAccess = async (req: any, res: Response, next: any) => {
 
     if(data && data.length && data[0].id) {
       next()
+      return
     }
   }
-  sendErrorResponse(res, 401, "Not authorized to access endpoint")
+  res.status(401).json('Not authorized to access endpoint')
 }

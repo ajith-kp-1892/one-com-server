@@ -3,19 +3,6 @@
    
    Created on : Thu Jun 23 2022
    Author     : Ajith K P
-   
-   Copyright (c) 2022 Obopay. All rights reserved.
-------------------------------------------------------------------------------*/
-
-
-
-/*------------------------------------------------------------------------------
-   About      : Authentication check
-   
-   Created on : Thu Jun 23 2022
-   Author     : Ajith K P
-   
-   Copyright (c) 2022 Obopay. All rights reserved.
 ------------------------------------------------------------------------------*/
 
 import { ConfigData } from '../config/configs'
@@ -33,9 +20,11 @@ export const canAuthenticate = (req : any, res : Response, next : any) => {
         return res.sendStatus(403);
       }
       req['userInfo'] = user
-      next();
-    });
+      next()
+      return
+    })
   } else {
-    res.sendStatus(401);
+    res.locals.resp = { code : 401,error: 'unauthorized'}
+    res.status(401).json('Not authorized to access endpoint')
   }
 }

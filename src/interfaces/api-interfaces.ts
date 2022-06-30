@@ -3,9 +3,13 @@
    
    Created on : Thu Jun 23 2022
    Author     : Ajith K P
-   
-   Copyright (c) 2022 Obopay. All rights reserved.
 ------------------------------------------------------------------------------*/
+
+export type Retval = {
+  code   : number,
+  data  ?: any,
+  error  ?: string
+}
 
 export namespace SignUp {
   export const path  =  '/signup'

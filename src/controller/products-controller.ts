@@ -3,15 +3,12 @@
    
    Created on : Thu Jun 23 2022
    Author     : Ajith K P
-   
-   Copyright (c) 2022 Obopay. All rights reserved.
 ------------------------------------------------------------------------------*/
 
 import { 
          Request, 
          Response 
         }                      from "express"
-import { sendSuccessResponse } from "../utils";
 
 export class ProductController {
 
@@ -36,7 +33,6 @@ export class ProductController {
         message = 'Product deleted successfully'
         break
     }
-    sendSuccessResponse(res, 200, message)
-    return res
+    return {code : 200, data : message}
   }
 }

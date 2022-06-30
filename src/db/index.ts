@@ -3,8 +3,6 @@
    
    Created on : Thu Jun 23 2022
    Author     : Ajith K P
-   
-   Copyright (c) 2022 Obopay. All rights reserved.
 ------------------------------------------------------------------------------*/
 
 import { ConfigData }  from '../config/configs'

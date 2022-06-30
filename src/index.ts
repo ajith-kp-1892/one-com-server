@@ -3,8 +3,6 @@
    
    Created on : Thu Jun 23 2022
    Author     : Ajith K P
-   
-   Copyright (c) 2022 Obopay. All rights reserved.
 ------------------------------------------------------------------------------*/
 
 import express, { Request, Response }        from 'express'
@@ -14,11 +12,30 @@ import { ConfigData }                        from './config/configs'
 import { canAccess }                         from './middleware/canAccess'
 import { ProductController }                 from './controller/products-controller'
 import { AuthController }                    from './controller/auth-controller'
+import { logger }                            from './utils'
 
 const bodyParser = require('body-parser'),
       cors       = require('cors')
 
 
+const client    = require('prom-client'),
+      metricsInterval =client.collectDefaultMetrics()
+
+const httpRequestDurationMicroseconds  = new client.Histogram({
+  name       : 'http_request_duration_ms',
+  help       : 'Duration of HTTP requests in ms',
+  labelNames : ['method', 'route', 'code'],
+  buckets    : [0.10, 5, 15, 50, 100, 200, 300, 400, 500]
+}) 
+
+
+//Custom Metric
+const productsTotal = new client.Counter({
+  name: 'api_hits_total',
+  help: 'Total number of API hits',
+  labelNames: ['api_hit']
+})
+  
 export class App {
 
   appServer         = express();
@@ -30,84 +47,104 @@ export class App {
     this.appServer.use(bodyParser.urlencoded({ extended: false }))
     this.appServer.use(bodyParser.json())
 
-    this.appServer.listen(ConfigData.port, () => {
+    const appListen = this.appServer.listen(ConfigData.port, () => {
       console.log(`Server is running at https://localhost:${ConfigData.port}`)
     })
 
     this.initRoutes()
+    process.on('SIGTERM', () => {
+      clearInterval(metricsInterval)
+    
+      appListen.close((err) => {
+        if (err) {
+          console.error(err)
+          process.exit(1)
+        }
+        process.exit(0)
+      })
+    })
   }
-
 
   private initRoutes() {
 
     this.appServer.use(cors())
 
-    this.appServer.post(SignUp.path, async (req: Request, res: Response) => {
-      try {
-        await this.authController.signup(req.body as SignUp.params, res)
-      } catch (err) {
-        res.status(500)
-        return res.json({ error: (err as any).message })
-      }
+    // Runs before each requests
+    this.appServer.use((req, res, next) => {
+      res.locals.startTime = Date.now()
+      next()
     })
 
-    this.appServer.post(Login.path, async (req: Request, res: Response) => {
-      try {
-        await this.authController.login(req.body as Login.params, res)
-      } catch (err) {
-        res.status(500)
-        return res.json({ error: (err as any).message })
-      }
+    //Signup Handler
+    this.appServer.post(SignUp.path, async (req: Request, res: Response, next) => {
+      logger(req.path, req.method, 'Req', req.body)
+      const resp = await this.authController.signup(req.body as SignUp.params)
+      res.locals.resp = resp
+
+      const methodName = `SignUp`
+      productsTotal.inc({ api_hit:  methodName })
+
+      next()
     })
 
-    this.appServer.post(GetProducts.path, canAuthenticate, canAccess, async (req: Request, res: Response) => {
-      try {
-        await this.productController.products(req, res)
-      } catch (err) {
-        return res.status(500).json({ error: (err as any).message })
-      }
+    //Login Handler
+    this.appServer.post(Login.path, async (req: Request, res: Response, next) => {
+      logger(req.path, req.method, 'Req', req.body)
+      const resp = await this.authController.login(req.body as Login.params)
+      res.locals.resp = resp
+
+      const methodName = `Login`
+      productsTotal.inc({ api_hit:  methodName })
+
+      next()
     })
 
-    this.appServer.get(GetProducts.path, canAuthenticate, canAccess, async (req: Request, res: Response) => {
-      try {
-        await this.productController.products(req, res)
-      } catch (err) {
-        return res.status(500).json({ error: (err as any).message })
+    //Products Handler
+    this.appServer.all(GetProducts.path, canAuthenticate, canAccess, async (req: Request, res: Response, next) => {
+      logger(req.path, req.method, 'Req', req.body)
+      const resp = await this.productController.products(req, res)
+      
+      //Delaying process
+      if(Math.random()%2 === 0) {
+        await new Promise((resolve, rej) => {
+          setTimeout(()=>{resolve('')}, 3000)
+        })
       }
+      
+
+      const methodName = `Products_${req.method}`
+      productsTotal.inc({ api_hit :  methodName })
+      
+      res.locals.resp = resp
+      next()
     })
 
-    this.appServer.put(GetProducts.path, canAuthenticate, canAccess, async (req: Request, res: Response) => {
-      try {
-        await this.productController.products(req, res)
-      } catch (err) {
-        return res.status(500).json({ error: (err as any).message })
-      }
+    //Metrics Handler
+    this.appServer.get('/metrics', async (req, res) => {
+      res.set('Content-Type', client.register.contentType)
+      res.end(client.register.metrics())
     })
 
-    this.appServer.patch(GetProducts.path, canAuthenticate, canAccess, async (req: Request, res: Response) => {
-      try {
-        await this.productController.products(req, res)
-      } catch (err) {
-        return res.status(500).json({ error: (err as any).message })
-      }
-    })
+    // Runs after each requests
+    this.appServer.use((req, res, next) => {
+      const responseTimeInMs = Date.now() - res.locals.startTime
 
-    this.appServer.delete(GetProducts.path, canAuthenticate, canAccess, async (req: Request, res: Response) => {
-      try {
-        await this.productController.products(req, res)
-      } catch (err) {
-        return res.status(500).json({ error: (err as any).message })
+      if(res.locals.resp) {
+        const resp = res.locals.resp
+        res.status(resp.code).json(resp.data ? resp.data : resp.error)
       }
-    })
 
-    this.appServer.all('*', (req, res) => {
-      res.status(403).send({
-        status: 'error',
-        error: 'not authorized'
-      })
-    });
+      logger(req.path, req.method, 'Res', res.locals.resp)
+
+      if(req.route) {
+        httpRequestDurationMicroseconds
+        .labels(req.method, req.route.path, res.statusCode)
+        .observe(responseTimeInMs)
+      }
+
+      next()
+    })
   }
 }
 
 new App().init()
-
