@@ -1,33 +1,43 @@
 # One Com Server
 
-## Required Library
+## Required Dependencies
 
+- Postgres Database
 - Docker
+
 #
 
 ## Steps
 
-1. Run server
-   `npm install` and `tsc` and `node build`
 
-2. Run Prometheus
+1. To use postgres database
+    - use `scripts.sql` file to create new database
+    - configure database information accordingly in src/config/configs.ts
+
+2. To run server
+    - install Dependencies `npm install`
+    - To compile `tsc` 
+    - To start server `node build`
+    - To run test scripts (Jest) :  `npm test`
+
+3. To run prometheus
 
     Modify: `/prometheus-configs/prometheus.yml`, replace `192.168.29.21` with your own host machine's IP.  
     ```sh
     docker run -p 9090:9090 -v "$(pwd)/prometheus-configs":/prometheus-configs prom/prometheus --config.file=/prometheus-configs/prometheus.yml
     ```
 
-3. Visit your running Prometheus and run queries
+4. Visit your running prometheus and run queries
 
     Open Prometheus: http://localhost:9090
 
-4. Run Grafana
+5. Run grafana
 
     ```sh
     docker run -i -p 3000:3000 grafana/grafana
     ```
 
-5. Visit your running Grafana 
+6. Visit your running grafana
 
     Open Grafana http://localhost:3000
   
@@ -36,11 +46,11 @@
       Password: admin
     ```
 
-6. Add Prometheus data source 
+7. Add prometheus data source 
 
     Url: `http://{{localhost/IP}}:9090`, Access: `direct`
 
-7. To see the custom developed monitoring tool, 
+8. To see the custom developed monitoring tool, 
 
     Import `grafana.json` for dashboard.
 

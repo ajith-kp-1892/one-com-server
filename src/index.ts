@@ -63,6 +63,7 @@ export class App {
         process.exit(0)
       })
     })
+    return this.appServer
   }
 
   private initRoutes() {
@@ -147,4 +148,5 @@ export class App {
   }
 }
 
-new App().init()
+const appServer = new App().init()
+module.exports = appServer;
